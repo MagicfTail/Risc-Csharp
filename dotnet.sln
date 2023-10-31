@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "riscV", "riscV\riscV.csproj", "{F03E6BDA-1CEC-4E44-A7A4-32EF1CD00B11}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "consoleShowcase", "consoleShowcase\consoleShowcase.csproj", "{D139C477-55FF-4963-9C91-1E1527881278}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F03E6BDA-1CEC-4E44-A7A4-32EF1CD00B11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F03E6BDA-1CEC-4E44-A7A4-32EF1CD00B11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F03E6BDA-1CEC-4E44-A7A4-32EF1CD00B11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F03E6BDA-1CEC-4E44-A7A4-32EF1CD00B11}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D139C477-55FF-4963-9C91-1E1527881278}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D139C477-55FF-4963-9C91-1E1527881278}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D139C477-55FF-4963-9C91-1E1527881278}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D139C477-55FF-4963-9C91-1E1527881278}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
