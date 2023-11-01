@@ -21,6 +21,7 @@
         "mscratch",
         "mstatus",
         "mtvec",
+        "MULHU",
         "pmpaddr",
         "pmpcfg",
         "SLLI",

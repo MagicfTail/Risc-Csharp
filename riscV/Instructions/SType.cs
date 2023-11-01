@@ -16,7 +16,7 @@ class SType
         Rs2 = (instruction >> 20) & 0b11111;
 
         int Imm4_0 = (instruction >> 7) & 0b11111;
-        int Imm11_5 = (instruction >> 25) & 0b1111111;
+        int Imm11_5 = (instruction >> 20) & 0b111111100000;
 
         Imm = Imm11_5 | Imm4_0;
     }

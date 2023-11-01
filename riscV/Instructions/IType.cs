@@ -7,11 +7,9 @@ class IType
     public int Funct3 { get; private set; }
     public int Rs1 { get; private set; }
     public int Imm { get; private set; }
-    public int Ins { get; private set; }
 
     public IType(int instruction)
     {
-        Ins = instruction;
         Opcode = instruction & 0b1111111;
         Rd = (instruction >> 7) & 0b11111;
         Funct3 = (instruction >> 12) & 0b111;

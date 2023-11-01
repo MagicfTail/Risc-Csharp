@@ -12,6 +12,7 @@ public class CPU
     private readonly int[] _registers = new int[32];
 
     private int _pc;
+
     private int mieCSR;
     private int mipCSR;
     private int mscratchCSR;
@@ -20,6 +21,8 @@ public class CPU
     private int pmpcfg0CSR;
     private int mhartidCSR;
     private int mstatusCSR;
+
+    private int LRAddress;
 
     public CPU(Memory memory, int reg11Val)
     {
@@ -185,7 +188,7 @@ public class CPU
                             XORI(unpacked);
                             break;
                         case 0b101:
-                            switch ((unpacked.Imm >> 5) & 0b11111)
+                            switch ((unpacked.Imm >> 5) & 0b1111111)
                             {
                                 case 0b0000000:
                                     SRLI(unpacked);
@@ -246,6 +249,12 @@ public class CPU
                         case (0b010, 0b00000):
                             AMOADD_W(unpacked);
                             break;
+                        case (0b010, 0b00010):
+                            LR_W(unpacked);
+                            break;
+                        case (0b010, 0b00011):
+                            SC_W(unpacked);
+                            break;
                         case (0b010, 0b01000):
                             AMOOR_W(unpacked);
                             break;
@@ -264,6 +273,9 @@ public class CPU
                         case (0b000, 0b0000000):
                             ADD(unpacked);
                             break;
+                        case (0b000, 0b0000001):    // RV32M Standard Extension
+                            MUL(unpacked);
+                            break;
                         case (0b000, 0b0100000):
                             SUB(unpacked);
                             break;
@@ -276,14 +288,20 @@ public class CPU
                         case (0b011, 0b0000000):
                             SLTU(unpacked);
                             break;
+                        case (0b011, 0b0000001):    // RV32M Standard Extension
+                            MULHU(unpacked);
+                            break;
                         case (0b100, 0b0000000):
                             XOR(unpacked);
                             break;
                         case (0b100, 0b0000001):    // RV32M Standard Extension
-                            MUL(unpacked);
+                            DIV(unpacked);
                             break;
                         case (0b101, 0b0000000):
                             SRL(unpacked);
+                            break;
+                        case (0b101, 0b0000001):    // RV32M Standard Extension
+                            DIVU(unpacked);
                             break;
                         case (0b101, 0b0100000):
                             SRA(unpacked);
@@ -470,17 +488,23 @@ public class CPU
 
     private void BGE(BType instruction)
     {
-        if (ReadRegister(instruction.Rs1) >= ReadRegister(instruction.Rs2)) _pc += Sext(instruction.Imm, 13) - 4;
+        if (ReadRegister(instruction.Rs1) >= ReadRegister(instruction.Rs2))
+        {
+            _pc += Sext(instruction.Imm, 13) - 4;
+        }
     }
 
     private void BLTU(BType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        if ((uint)ReadRegister(instruction.Rs1) < (uint)ReadRegister(instruction.Rs2))
+        {
+            _pc += Sext(instruction.Imm, 13) - 4;
+        }
     }
 
     private void BGEU(BType instruction)
     {
-        if ((uint)ReadRegister(instruction.Rs1) >= (uint)ReadRegister(instruction.Rs1))
+        if ((uint)ReadRegister(instruction.Rs1) >= (uint)ReadRegister(instruction.Rs2))
         {
             _pc += Sext(instruction.Imm, 13) - 4;
         }
@@ -488,7 +512,8 @@ public class CPU
 
     private void LB(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd,
+            Sext(_memory.ReadByte(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)) & 0b11111111, 8));
     }
 
     private void LH(IType instruction)
@@ -498,7 +523,7 @@ public class CPU
 
     private void LW(IType instruction)
     {
-        WriteRegister(instruction.Rd, _memory.ReadInt(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)));
+        WriteRegister(instruction.Rd, Sext(_memory.ReadInt(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)), 32));
     }
 
     private void LBU(IType instruction)
@@ -519,7 +544,8 @@ public class CPU
 
     private void SH(SType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        short data = (short)(ReadRegister(instruction.Rs2) & 0b1111111111111111);
+        _memory.WriteShort(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), data);
     }
 
     private void SW(SType instruction)
@@ -539,22 +565,22 @@ public class CPU
 
     private void SLTIU(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, (uint)ReadRegister(instruction.Rs1) < (uint)Sext(instruction.Imm, 12) ? 1 : 0);
     }
 
     private void XORI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) ^ Sext(instruction.Imm, 12));
     }
 
     private void ORI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) | Sext(instruction.Imm, 12));
     }
 
     private void ANDI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) & Sext(instruction.Imm, 12));
     }
 
     private void SLLI(IType instruction)
@@ -564,12 +590,12 @@ public class CPU
 
     private void SRLI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) >>> (instruction.Imm & 0b11111));
     }
 
     private void SRAI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) >> (instruction.Imm & 0b11111));
     }
 
     private void ADD(RType instruction)
@@ -579,7 +605,7 @@ public class CPU
 
     private void SUB(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) - ReadRegister(instruction.Rs2));
     }
 
     private void SLL(RType instruction)
@@ -594,17 +620,17 @@ public class CPU
 
     private void SLTU(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, (uint)ReadRegister(instruction.Rs1) < (uint)ReadRegister(instruction.Rs2) ? 1 : 0);
     }
 
     private void XOR(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) ^ ReadRegister(instruction.Rs2));
     }
 
     private void SRL(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) >>> (ReadRegister(instruction.Rs2) & 0b11111));
     }
 
     private void SRA(RType instruction)
@@ -614,7 +640,7 @@ public class CPU
 
     private void OR(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) | ReadRegister(instruction.Rs2));
     }
 
     private void AND(RType instruction)
@@ -624,7 +650,7 @@ public class CPU
 
     private void FENCE(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        // fence isn't required for this implementation
     }
 
     private void FENCE_I(IType instruction)
@@ -688,20 +714,56 @@ public class CPU
         WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) * ReadRegister(instruction.Rs2));
     }
 
+    private void MULHU(RType instruction)
+    {
+        ulong data = (ulong)ReadRegister(instruction.Rs1) * (ulong)ReadRegister(instruction.Rs2);
+        WriteRegister(instruction.Rd, (int)(data >> 32));
+    }
+
+    private void DIV(RType instruction)
+    {
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) / ReadRegister(instruction.Rs2));
+    }
+
+    private void DIVU(RType instruction)
+    {
+        WriteRegister(instruction.Rd, (int)((uint)ReadRegister(instruction.Rs1) / (uint)ReadRegister(instruction.Rs2)));
+    }
+
     // RV32A Standard Extension
+
+    private void LR_W(RType instruction)
+    {
+        int address = ReadRegister(instruction.Rs1);
+        WriteRegister(instruction.Rd, _memory.ReadInt(address));
+        LRAddress = address;
+    }
+
+    private void SC_W(RType instruction)
+    {
+        if (LRAddress == ReadRegister(instruction.Rs1))
+        {
+            _memory.WriteInt(ReadRegister(instruction.Rs1), ReadRegister(instruction.Rs2));
+            WriteRegister(instruction.Rd, 0);
+        }
+        else
+        {
+            WriteRegister(instruction.Rd, 1);
+        }
+    }
 
     private void AMOADD_W(RType instruction)
     {
         int data = _memory.ReadInt(ReadRegister(instruction.Rs1));
-        WriteRegister(instruction.Rd, data);
         _memory.WriteInt(ReadRegister(instruction.Rs1), data + ReadRegister(instruction.Rs2));
+        WriteRegister(instruction.Rd, data);
     }
 
     private void AMOOR_W(RType instruction)
     {
         int data = _memory.ReadInt(ReadRegister(instruction.Rs1));
-        WriteRegister(instruction.Rd, data);
         _memory.WriteInt(ReadRegister(instruction.Rs1), data | ReadRegister(instruction.Rs2));
+        WriteRegister(instruction.Rd, data);
     }
 
     private static int Sext(int value, int length)

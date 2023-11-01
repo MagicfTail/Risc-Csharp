@@ -16,11 +16,9 @@ class Program
 
         // Load dtb
         int ptrDTB = ramAmount - DTB.Data.Length - offsetConst;
-        memory.LoadByteArray(DTB.Data, ptrDTB);
+        memory.LoadDTB(ptrDTB, DTB.Data);
 
         CPU cpu = new(memory, ptrDTB + memoryOffset);
-
         cpu.Start();
-
     }
 }

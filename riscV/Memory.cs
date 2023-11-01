@@ -14,6 +14,26 @@ public class Memory
         _stream = new(_RAM);
     }
 
+    // _memory.DumpMemory("../RAMDumpMine.tmp");
+    // Environment.Exit(0);
+    public void DumpMemory(string fileName)
+    {
+        using FileStream? file = File.Create(fileName);
+        StringBuilder hex = new StringBuilder((int)(_stream.Length * 2));
+        int c = 0;
+        foreach (byte b in _RAM)
+        {
+            c += 1;
+            hex.AppendFormat("{0:x2}", b);
+
+            if (c % 8 == 0)
+            {
+                hex.Append('\n');
+            }
+        }
+        file.Write(Encoding.UTF8.GetBytes(hex.ToString()));
+    }
+
     public void LoadImage(FileStream? image)
     {
         if (image == null)
@@ -25,16 +45,31 @@ public class Memory
         image.CopyTo(_stream);
     }
 
-    public void LoadByteArray(byte[] data, int position)
+    public void LoadDTB(int position, byte[] data)
     {
         _stream.Position = position;
         _stream.Write(data, 0, data.Length);
+
+        // Update system ram size in DTB (but if and only if we're using the default DTB)
+        // Warning - this will need to be updated if the skeleton DTB is ever modified.
+        // See https://github.com/cnlohr/mini-rv32ima
+        byte[] buffer = new byte[4];
+        _stream.Position = position + 0x13c;
+        _stream.Read(buffer, 0, 4);
+        if (BitConverter.ToInt32(buffer) == 0x00c0ff03)
+        {
+            int validRAM = position;
+            int data2 = (validRAM >> 24) | (((validRAM >> 16) & 0xff) << 8) | (((validRAM >> 8) & 0xff) << 16) | ((validRAM & 0xff) << 24);
+            _stream.Position = position + 0x13c;
+            _stream.Write(BitConverter.GetBytes(data2), 0, 4);
+        }
     }
 
     public void WriteByte(int position, byte data)
     {
+        byte[] dataArray = new byte[1] { data };
         _stream.Position = position - memoryOffset;
-        _stream.WriteByte(data);
+        _stream.Write(dataArray, 0, 1);
     }
 
     public void WriteShort(int position, short data)
