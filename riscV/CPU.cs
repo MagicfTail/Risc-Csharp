@@ -3,7 +3,7 @@ using riscV.instructions;
 
 namespace riscV;
 
-public class CPU
+public abstract class CPU
 {
     private const int memoryOffset = unchecked((int)0x80000000);
 
@@ -12,6 +12,11 @@ public class CPU
     private readonly int[] _registers = new int[32];
 
     private int _pc;
+    private int LRAddress;
+    // private int mTimeL;
+    // private int mTimeH;
+    // private int mTimeCmpL;
+    // private int mTimeCmpH;
 
     private int mieCSR;
     private int mipCSR;
@@ -22,14 +27,16 @@ public class CPU
     private int mhartidCSR;
     private int mstatusCSR;
 
-    private int LRAddress;
-
     public CPU(Memory memory, int reg11Val)
     {
         _pc = memoryOffset;
         _memory = memory;
         WriteRegister(11, reg11Val);
     }
+
+    public abstract void HandleMemoryStore(int position, int data);
+
+    public abstract int HandleMemoryLoad(int position);
 
     public void Start()
     {
@@ -41,7 +48,7 @@ public class CPU
 
     public void Cycle()
     {
-        int instruction = _memory.ReadInt(_pc);
+        int instruction = ReadMemory(_pc, 32);
         HandleInstruction32(instruction);
         _pc += 4;
     }
@@ -513,44 +520,43 @@ public class CPU
     private void LB(IType instruction)
     {
         WriteRegister(instruction.Rd,
-            Sext(_memory.ReadByte(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)) & 0b11111111, 8));
+            Sext(ReadMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), 8) & 0b11111111, 8));
     }
 
     private void LH(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd,
+            Sext(ReadMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), 16) & 0b1111111111111111, 16));
     }
 
     private void LW(IType instruction)
     {
-        WriteRegister(instruction.Rd, Sext(_memory.ReadInt(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)), 32));
+        WriteRegister(instruction.Rd, Sext(ReadMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), 32), 32));
     }
 
     private void LBU(IType instruction)
     {
-        WriteRegister(instruction.Rd, _memory.ReadByte(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12)) & 0b11111111);
+        WriteRegister(instruction.Rd, ReadMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), 8) & 0b11111111);
     }
 
     private void LHU(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), 16) & 0b1111111111111111);
     }
 
     private void SB(SType instruction)
     {
-        byte data = (byte)(ReadRegister(instruction.Rs2) & 0b11111111);
-        _memory.WriteByte(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), data);
+        WriteMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), ReadRegister(instruction.Rs2), 8);
     }
 
     private void SH(SType instruction)
     {
-        short data = (short)(ReadRegister(instruction.Rs2) & 0b1111111111111111);
-        _memory.WriteShort(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), data);
+        WriteMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), ReadRegister(instruction.Rs2), 16);
     }
 
     private void SW(SType instruction)
     {
-        _memory.WriteInt(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), ReadRegister(instruction.Rs2));
+        WriteMemory(ReadRegister(instruction.Rs1) + Sext(instruction.Imm, 12), ReadRegister(instruction.Rs2), 32);
     }
 
     private void ADDI(IType instruction)
@@ -735,7 +741,7 @@ public class CPU
     private void LR_W(RType instruction)
     {
         int address = ReadRegister(instruction.Rs1);
-        WriteRegister(instruction.Rd, _memory.ReadInt(address));
+        WriteRegister(instruction.Rd, ReadMemory(address, 32));
         LRAddress = address;
     }
 
@@ -743,7 +749,7 @@ public class CPU
     {
         if (LRAddress == ReadRegister(instruction.Rs1))
         {
-            _memory.WriteInt(ReadRegister(instruction.Rs1), ReadRegister(instruction.Rs2));
+            WriteMemory(ReadRegister(instruction.Rs1), ReadRegister(instruction.Rs2), 32);
             WriteRegister(instruction.Rd, 0);
         }
         else
@@ -754,15 +760,15 @@ public class CPU
 
     private void AMOADD_W(RType instruction)
     {
-        int data = _memory.ReadInt(ReadRegister(instruction.Rs1));
-        _memory.WriteInt(ReadRegister(instruction.Rs1), data + ReadRegister(instruction.Rs2));
+        int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
+        WriteMemory(ReadRegister(instruction.Rs1), data + ReadRegister(instruction.Rs2), 32);
         WriteRegister(instruction.Rd, data);
     }
 
     private void AMOOR_W(RType instruction)
     {
-        int data = _memory.ReadInt(ReadRegister(instruction.Rs1));
-        _memory.WriteInt(ReadRegister(instruction.Rs1), data | ReadRegister(instruction.Rs2));
+        int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
+        WriteMemory(ReadRegister(instruction.Rs1), data | ReadRegister(instruction.Rs2), 32);
         WriteRegister(instruction.Rd, data);
     }
 
@@ -789,4 +795,88 @@ public class CPU
     {
         return Convert.ToString(value, 16);
     }
+
+    private void WriteMemory(int position, int data, int len)
+    {
+        int offsetPosition = position - memoryOffset;
+
+        if ((uint)offsetPosition >= _memory.Length - 3)
+        {
+            if ((uint)position >= 0x10000000 && (uint)position < 0x12000000)
+            {
+                if (position == 0x11004004) // CLNT
+                {
+                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                }
+                else if (position == 0x11004000) // CLNT
+                {
+                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                }
+                else if (position == 0x11100000) //SYSCON (reboot, power off, etc.)
+                {
+                    throw new NotImplementedException($"Unimplemented Write Position SYSCON: {position}");
+                }
+                else
+                {
+                    HandleMemoryStore(position, data);
+                    return;
+                }
+            }
+            else
+            {
+                throw new InvalidDataException("Store access fault.");
+            }
+        }
+
+        switch (len)
+        {
+            case 8:
+                _memory.WriteByte(offsetPosition, (byte)(data & 0b11111111));
+                break;
+            case 16:
+                _memory.WriteHalf(offsetPosition, (short)(data & 0b1111111111111111));
+                break;
+            case 32:
+                _memory.WriteWord(offsetPosition, data);
+                break;
+            default:
+                throw new InvalidDataException($"Invalid write length: {len}");
+        }
+    }
+
+    public int ReadMemory(int position, int len)
+    {
+        int offsetPosition = position - memoryOffset;
+
+        if ((uint)offsetPosition >= _memory.Length - 3)
+        {
+            if ((uint)position >= 0x10000000 && (uint)position < 0x12000000)  // UART, CLNT
+            {
+                if (position == 0x1100bffc) // https://chromitem-soc.readthedocs.io/en/latest/clint.html
+                    throw new NotImplementedException($"Unimplemented Read Position CLNT: {position}");
+                else if (position == 0x1100bff8)
+                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                else
+                    return HandleMemoryLoad(position);
+            }
+            else
+            {
+                throw new InvalidDataException("Read access fault.");
+            }
+        }
+
+        switch (len)
+        {
+            case 8:
+                return _memory.ReadByte(offsetPosition);
+            case 16:
+                return _memory.ReadHalf(offsetPosition);
+            case 32:
+                return _memory.ReadWord(offsetPosition);
+            default:
+                throw new InvalidDataException($"Invalid read length: {len}");
+        }
+    }
+
+
 }

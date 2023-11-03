@@ -8,6 +8,8 @@ public class Memory
     private readonly byte[] _RAM;
     private MemoryStream _stream;
 
+    public int Length => _RAM.Length;
+
     public Memory(int memorySizeBytes)
     {
         _RAM = new byte[memorySizeBytes];
@@ -67,45 +69,44 @@ public class Memory
 
     public void WriteByte(int position, byte data)
     {
-        byte[] dataArray = new byte[1] { data };
-        _stream.Position = position - memoryOffset;
-        _stream.Write(dataArray, 0, 1);
+        _stream.Position = position;
+        _stream.Write(new byte[1] { data }, 0, 1);
     }
 
-    public void WriteShort(int position, short data)
+    public void WriteHalf(int position, short data)
     {
-        _stream.Position = position - memoryOffset;
+        _stream.Position = position;
         _stream.Write(BitConverter.GetBytes(data), 0, 2);
     }
 
-    public void WriteInt(int position, int data)
+    public void WriteWord(int position, int data)
     {
-        _stream.Position = position - memoryOffset;
+        _stream.Position = position;
         _stream.Write(BitConverter.GetBytes(data), 0, 4);
     }
 
-    public byte ReadByte(int position)
+    public int ReadByte(int position)
     {
         byte[] buffer = new byte[1];
-        _stream.Position = position - memoryOffset;
+        _stream.Position = position;
         _stream.Read(buffer, 0, 1);
 
         return buffer[0];
     }
 
-    public short ReadShort(int position)
+    public int ReadHalf(int position)
     {
         byte[] buffer = new byte[2];
-        _stream.Position = position - memoryOffset;
+        _stream.Position = position;
         _stream.Read(buffer, 0, 2);
 
         return BitConverter.ToInt16(buffer);
     }
 
-    public int ReadInt(int position)
+    public int ReadWord(int position)
     {
         byte[] buffer = new byte[4];
-        _stream.Position = position - memoryOffset;
+        _stream.Position = position;
         _stream.ReadExactly(buffer, 0, 4);
         return BitConverter.ToInt32(buffer);
     }
