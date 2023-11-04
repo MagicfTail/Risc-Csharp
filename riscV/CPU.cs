@@ -7,16 +7,33 @@ public abstract class CPU
 {
     private const int memoryOffset = unchecked((int)0x80000000);
 
+    private const int mvendoridCSR = unchecked((int)0xff0ff0ff);
+    private const int marchidCSR = 0x40401101;
+    private const int mimpidCSR = 0x0;
+
     private readonly Memory _memory;
 
     private readonly int[] _registers = new int[32];
 
+    // ---------- Debug options ----------
+    private readonly bool _dumpState;
+    private readonly int _maxCycles;
+    private int cycle;
+    // -----------------------------------
+
     private int _pc;
+
     private int LRAddress;
-    // private int mTimeL;
-    // private int mTimeH;
-    // private int mTimeCmpL;
-    // private int mTimeCmpH;
+    private long mTime = 0;
+    // private uint mTimeL = 0;
+    // private uint mTimeH = 0;
+    private long mTimeCmp = 0;
+    // private uint mTimeCmpL = 0;
+    // private uint mTimeCmpH = 0;
+    private int globalTrap = 0;
+
+    private bool WFI;
+    private int privilege;
 
     private int mieCSR;
     private int mipCSR;
@@ -26,31 +43,98 @@ public abstract class CPU
     private int pmpcfg0CSR;
     private int mhartidCSR;
     private int mstatusCSR;
+    private int mepcCSR;
+    private int mtvalCSR;
+    private int mcauseCSR;
 
-    public CPU(Memory memory, int reg11Val)
+    public CPU(Memory memory, int reg11Val, bool dumpState = false, int maxCycles = -1)
     {
         _pc = memoryOffset;
         _memory = memory;
         WriteRegister(11, reg11Val);
+
+        _dumpState = dumpState;
+        _maxCycles = maxCycles;
     }
 
     public abstract void HandleMemoryStore(int position, int data);
 
     public abstract int HandleMemoryLoad(int position);
 
+    public abstract void HandleUnknownCSRWrite(int CSR, int value);
+
+    public abstract int HandleUnknownCSRRead(int CSR);
+
+    public abstract uint HandleTimeDiff();
+
     public void Start()
     {
-        while (true)
+        cycle = 0;
+        while (_maxCycles < 0 || cycle < _maxCycles)
         {
-            Cycle();
+            // if (cycle % 1024 == 0)
+            // {
+            //     UpdateTime(HandleTimeDiff());
+            // }
+
+            // if (cycle == 3248624)
+            // {
+            //     _memory.DumpMemory("../RAMDumpMine.tmp");
+            //     Environment.Exit(0);
+            // }
+
+
+            int returnCode = Cycle();
+            switch (returnCode)
+            {
+                case 0:
+                    break;
+                case 1:
+                    UpdateTime(1);
+                    break;
+                default:
+                    throw new NotImplementedException($"Return code not handled: {returnCode}");
+            }
+            UpdateTime(1);
+            cycle++;
         }
     }
 
-    public void Cycle()
+    public int Cycle()
     {
-        int instruction = ReadMemory(_pc, 32);
-        HandleInstruction32(instruction);
-        _pc += 4;
+        int instructionReturnValue = 0;
+        // Update every instruction, change later to regular updates
+
+        if (mTime > mTimeCmp && mTimeCmp > 0)
+        {
+            WFI = false;
+            mipCSR |= 1 << 7; //MTIP of MIP // https://stackoverflow.com/a/61916199/2926815  Fire interrupt.
+        }
+        else
+        {
+            mipCSR &= ~(1 << 7);
+        }
+
+        // If waiting for interrupt, don't do anything. This is where we should be sleeping
+        if (WFI)
+        {
+            return 1;
+        }
+
+        if (((mipCSR & (1 << 7)) != 0) && ((mieCSR & (1 << 7)) != 0) && ((mstatusCSR & 0x8) != 0))
+        {
+            globalTrap = unchecked((int)0x80000007);
+            _pc -= 4;
+        }
+        else
+        {
+            int instruction = ReadMemory(_pc, 32);
+            instructionReturnValue = HandleInstruction32(instruction);
+        }
+
+        HandleTrap();
+
+        return instructionReturnValue;
     }
 
     private int ReadCSR(int CSR)
@@ -61,11 +145,17 @@ public abstract class CPU
             0x304 => mieCSR,
             0x305 => mtvecCSR,
             0x340 => mscratchCSR,
+            0x341 => mepcCSR,
+            0x342 => mcauseCSR,
+            0x343 => mtvalCSR,
             0x344 => mipCSR,
-            0x3A0 => pmpcfg0CSR,
-            0x3B0 => pmpaddr0CSR,
-            0xF14 => mhartidCSR,
-            _ => throw new InvalidOperationException($"Tried Reading unimplemented CSR register: {Convert.ToString(CSR, 16)}"),
+            0x3A0 => 0, //pmpcfg0CSR,
+            0x3B0 => 0, //pmpaddr0CSR,
+            0xf11 => 0, //mvendoridCSR,
+            0xf12 => 0, //marchidCSR,
+            0xf13 => 0, //mimpidCSR,
+            0xF14 => 0, //mhartidCSR,
+            _ => HandleUnknownCSRRead(CSR)
         };
     }
 
@@ -85,6 +175,15 @@ public abstract class CPU
             case 0x340:
                 mscratchCSR = value;
                 break;
+            case 0x341:
+                mepcCSR = value;
+                break;
+            case 0x342:
+                mcauseCSR = value;
+                break;
+            case 0x343:
+                mtvalCSR = value;
+                break;
             case 0x344:
                 mipCSR = value;
                 break;
@@ -94,11 +193,18 @@ public abstract class CPU
             case 0x3B0:
                 pmpaddr0CSR = value;
                 break;
+            case 0xf11:
+                break;
+            case 0xf12:
+                break;
+            case 0xf13:
+                break;
             case 0xF14:
                 mhartidCSR = value;
                 break;
             default:
-                throw new InvalidOperationException($"Tried writing unimplemented CSR register: {Convert.ToString(CSR, 16)}");
+                HandleUnknownCSRWrite(CSR, value);
+                break;
         }
     }
 
@@ -118,13 +224,14 @@ public abstract class CPU
         _registers[register] = value;
     }
 
-    private void HandleInstruction32(int instruction)
+    private int HandleInstruction32(int instruction)
     {
         int opcode = instruction & 0b1111111;
 
-        Console.WriteLine("PC: " + $"""{_pc:X8} [0x{instruction:X8}] """.ToLower());
-        Console.Write("Z" + $":{_registers[0]:X8} ra:{_registers[1]:X8} sp:{_registers[2]:X8} gp:{_registers[3]:X8} tp:{_registers[4]:X8} t0:{_registers[5]:X8} t1:{_registers[6]:X8} t2:{_registers[7]:X8} s0:{_registers[8]:X8} s1:{_registers[9]:X8} a0:{_registers[10]:X8} a1:{_registers[11]:X8} a2:{_registers[12]:X8} a3:{_registers[13]:X8} a4:{_registers[14]:X8} a5:{_registers[15]:X8} ".ToLower());
-        Console.WriteLine($"a6:{_registers[16]:X8} a7:{_registers[17]:X8} s2:{_registers[18]:X8} s3:{_registers[19]:X8} s4:{_registers[20]:X8} s5:{_registers[21]:X8} s6:{_registers[22]:X8} s7:{_registers[23]:X8} s8:{_registers[24]:X8} s9:{_registers[25]:X8} s10:{_registers[26]:X8} s11:{_registers[27]:X8} t3:{_registers[28]:X8} t4:{_registers[29]:X8} t5:{_registers[30]:X8} t6:{_registers[31]:X8}".ToLower());
+        if (_dumpState)
+        {
+            PrintStatus(instruction);
+        }
 
         switch (opcode)
         {
@@ -256,6 +363,9 @@ public abstract class CPU
                         case (0b010, 0b00000):
                             AMOADD_W(unpacked);
                             break;
+                        case (0b010, 0b00001):
+                            AMOSWAP_W(unpacked);
+                            break;
                         case (0b010, 0b00010):
                             LR_W(unpacked);
                             break;
@@ -264,6 +374,9 @@ public abstract class CPU
                             break;
                         case (0b010, 0b01000):
                             AMOOR_W(unpacked);
+                            break;
+                        case (0b010, 0b01100):
+                            AMOAND_W(unpacked);
                             break;
                         default:
                             throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7 >> 2)})");
@@ -288,6 +401,9 @@ public abstract class CPU
                             break;
                         case (0b001, 0b0000000):
                             SLL(unpacked);
+                            break;
+                        case (0b001, 0b0000001):    // RV32M Standard Extension
+                            MULH(unpacked);
                             break;
                         case (0b010, 0b0000000):
                             SLT(unpacked);
@@ -316,8 +432,14 @@ public abstract class CPU
                         case (0b110, 0b0000000):
                             OR(unpacked);
                             break;
+                        case (0b110, 0b0000001):    // RV32M Standard Extension
+                            REM(unpacked);
+                            break;
                         case (0b111, 0b0000000):
                             AND(unpacked);
+                            break;
+                        case (0b111, 0b0000001):    // RV32M Standard Extension
+                            REMU(unpacked);
                             break;
                         default:
                             throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7)})");
@@ -384,7 +506,7 @@ public abstract class CPU
                         case (0b000, 0b0000000):
                             ECALL(unpacked);
                             break;
-                        case (0b000, 0b0100000):
+                        case (0b000, 0b0000001):
                             EBREAK(unpacked);
                             break;
                         case (0b001, _):
@@ -406,7 +528,7 @@ public abstract class CPU
                             CSRRCI(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm)})");
                     }
 
                     break;
@@ -414,6 +536,9 @@ public abstract class CPU
             default:
                 throw new NotImplementedException($"Unhandled opcode: {ToBin(opcode)}");
         }
+
+        _pc += 4;
+        return 0;
     }
 
     private RType RTypeOpcode(int instruction)
@@ -448,7 +573,7 @@ public abstract class CPU
 
     private void LUI(UType instruction)
     {
-        WriteRegister(instruction.Rd, instruction.Imm << 12);
+        WriteRegister(instruction.Rd, Sext(instruction.Imm << 12, 32));
     }
 
     private void AUIPC(UType instruction)
@@ -459,6 +584,7 @@ public abstract class CPU
     private void JAL(JType instruction)
     {
         WriteRegister(instruction.Rd, _pc + 4);
+        int add = Sext(instruction.Imm, 21);
         _pc += Sext(instruction.Imm, 21) - 4;
     }
 
@@ -621,7 +747,7 @@ public abstract class CPU
 
     private void SLT(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) < ReadRegister(instruction.Rs2) ? ReadRegister(instruction.Rs1) : 0);
     }
 
     private void SLTU(RType instruction)
@@ -641,7 +767,7 @@ public abstract class CPU
 
     private void SRA(RType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) >> (ReadRegister(instruction.Rs2) & 0b11111));
     }
 
     private void OR(RType instruction)
@@ -703,7 +829,9 @@ public abstract class CPU
 
     private void CSRRSI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        int t = ReadCSR(instruction.Imm);
+        WriteCSR(instruction.Imm, t | instruction.Rs1);
+        WriteRegister(instruction.Rd, t);
     }
 
     private void CSRRCI(IType instruction)
@@ -720,10 +848,16 @@ public abstract class CPU
         WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) * ReadRegister(instruction.Rs2));
     }
 
+    private void MULH(RType instruction)
+    {
+        long data = (long)ReadRegister(instruction.Rs1) * (long)ReadRegister(instruction.Rs2);
+        WriteRegister(instruction.Rd, (int)(data >>> 32));
+    }
+
     private void MULHU(RType instruction)
     {
-        ulong data = (ulong)ReadRegister(instruction.Rs1) * (ulong)ReadRegister(instruction.Rs2);
-        WriteRegister(instruction.Rd, (int)(data >> 32));
+        ulong data = (ulong)(uint)ReadRegister(instruction.Rs1) * (uint)ReadRegister(instruction.Rs2);
+        WriteRegister(instruction.Rd, (int)(data >>> 32));
     }
 
     private void DIV(RType instruction)
@@ -734,6 +868,16 @@ public abstract class CPU
     private void DIVU(RType instruction)
     {
         WriteRegister(instruction.Rd, (int)((uint)ReadRegister(instruction.Rs1) / (uint)ReadRegister(instruction.Rs2)));
+    }
+
+    private void REM(RType instruction)
+    {
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) % ReadRegister(instruction.Rs2));
+    }
+
+    private void REMU(RType instruction)
+    {
+        WriteRegister(instruction.Rd, (int)((uint)ReadRegister(instruction.Rs1) % (uint)ReadRegister(instruction.Rs2)));
     }
 
     // RV32A Standard Extension
@@ -765,6 +909,14 @@ public abstract class CPU
         WriteRegister(instruction.Rd, data);
     }
 
+    private void AMOSWAP_W(RType instruction)
+    {
+        int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
+        WriteRegister(instruction.Rd, data);
+        WriteRegister(instruction.Rs1, ReadRegister(instruction.Rs2));
+        WriteRegister(instruction.Rs2, data);
+    }
+
     private void AMOOR_W(RType instruction)
     {
         int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
@@ -772,7 +924,14 @@ public abstract class CPU
         WriteRegister(instruction.Rd, data);
     }
 
-    private static int Sext(int value, int length)
+    private void AMOAND_W(RType instruction)
+    {
+        int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
+        WriteMemory(ReadRegister(instruction.Rs1), data & ReadRegister(instruction.Rs2), 32);
+        WriteRegister(instruction.Rd, data);
+    }
+
+    public static int Sext(int value, int length)
     {
         int checkMask = (int)Math.Pow(2, length - 1);
 
@@ -786,16 +945,6 @@ public abstract class CPU
         return value | ~signMask;
     }
 
-    private static string ToBin(int value)
-    {
-        return Convert.ToString(value, 2);
-    }
-
-    private static string ToHex(int value)
-    {
-        return Convert.ToString(value, 16);
-    }
-
     private void WriteMemory(int position, int data, int len)
     {
         int offsetPosition = position - memoryOffset;
@@ -806,15 +955,18 @@ public abstract class CPU
             {
                 if (position == 0x11004004) // CLNT
                 {
-                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                    mTimeCmp = ((long)data << 32) | (mTimeCmp & 0xffffffff);
+                    return;
                 }
                 else if (position == 0x11004000) // CLNT
                 {
-                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                    mTimeCmp = (data & 0xffffffff) | (mTimeCmp & unchecked((long)0xffffffff00000000));
+                    return;
                 }
                 else if (position == 0x11100000) //SYSCON (reboot, power off, etc.)
                 {
                     throw new NotImplementedException($"Unimplemented Write Position SYSCON: {position}");
+                    //return;
                 }
                 else
                 {
@@ -853,11 +1005,17 @@ public abstract class CPU
             if ((uint)position >= 0x10000000 && (uint)position < 0x12000000)  // UART, CLNT
             {
                 if (position == 0x1100bffc) // https://chromitem-soc.readthedocs.io/en/latest/clint.html
-                    throw new NotImplementedException($"Unimplemented Read Position CLNT: {position}");
+                {
+                    return (int)(mTime >>> 32);
+                }
                 else if (position == 0x1100bff8)
-                    throw new NotImplementedException($"Unimplemented Write Position CLNT: {position}");
+                {
+                    return (int)(mTime & 0xffffffff);
+                }
                 else
+                {
                     return HandleMemoryLoad(position);
+                }
             }
             else
             {
@@ -868,9 +1026,9 @@ public abstract class CPU
         switch (len)
         {
             case 8:
-                return _memory.ReadByte(offsetPosition);
+                return _memory.ReadByte(offsetPosition) & 0b11111111;
             case 16:
-                return _memory.ReadHalf(offsetPosition);
+                return _memory.ReadHalf(offsetPosition) & 0b1111111111111111;
             case 32:
                 return _memory.ReadWord(offsetPosition);
             default:
@@ -878,5 +1036,57 @@ public abstract class CPU
         }
     }
 
+    private void UpdateTime(long difference)
+    {
+        mTime += difference;
+    }
 
+    private void HandleTrap()
+    {
+        if (globalTrap == 0)
+        {
+            return;
+        }
+
+        if ((globalTrap & 0x80000000) != 0) // Interrupt, not a trap
+        {
+            mcauseCSR = globalTrap;
+            mtvalCSR = 0;
+            _pc += 4;
+        }
+        else
+        {
+            mcauseCSR = globalTrap - 1;
+            throw new NotImplementedException();
+        }
+        mepcCSR = _pc;
+        mstatusCSR = ((mstatusCSR & 0x08) << 4) | ((privilege & 3) << 11);
+        _pc = mtvecCSR - 4;
+        // Set flags or smt;
+
+        privilege = 3;
+
+        globalTrap = 0;
+        _pc += 4;
+    }
+
+    private static string ToBin(int value)
+    {
+        return Convert.ToString(value, 2);
+    }
+
+    private static string ToHex(int value)
+    {
+        return Convert.ToString(value, 16);
+    }
+
+    private void PrintStatus(int instruction)
+    {
+        Console.WriteLine($"x:{mstatusCSR:x8} a:{(int)(mTime >>> 32):x8} b:{Math.Max((int)((mTime & 0xffffffff) - 1), 0):x8} c:{(int)(mTimeCmp >>> 32):x8} d:{(int)(mTimeCmp & 0xffffffff):x8} e:{mscratchCSR:x8} f:{mtvecCSR:x8} g:{mieCSR:x8} h:{mipCSR:x8} i:{mepcCSR:x8} j:{mtvalCSR:x8} k:{mcauseCSR:x8}");
+
+        Console.WriteLine("PC: " + $"""{_pc:X8} [0x{instruction:X8}] """.ToLower());
+
+        Console.Write("Z" + $":{_registers[0]:X8} ra:{_registers[1]:X8} sp:{_registers[2]:X8} gp:{_registers[3]:X8} tp:{_registers[4]:X8} t0:{_registers[5]:X8} t1:{_registers[6]:X8} t2:{_registers[7]:X8} s0:{_registers[8]:X8} s1:{_registers[9]:X8} a0:{_registers[10]:X8} a1:{_registers[11]:X8} a2:{_registers[12]:X8} a3:{_registers[13]:X8} a4:{_registers[14]:X8} a5:{_registers[15]:X8} ".ToLower());
+        Console.WriteLine($"a6:{_registers[16]:X8} a7:{_registers[17]:X8} s2:{_registers[18]:X8} s3:{_registers[19]:X8} s4:{_registers[20]:X8} s5:{_registers[21]:X8} s6:{_registers[22]:X8} s7:{_registers[23]:X8} s8:{_registers[24]:X8} s9:{_registers[25]:X8} s10:{_registers[26]:X8} s11:{_registers[27]:X8} t3:{_registers[28]:X8} t4:{_registers[29]:X8} t5:{_registers[30]:X8} t6:{_registers[31]:X8}".ToLower());
+    }
 }
