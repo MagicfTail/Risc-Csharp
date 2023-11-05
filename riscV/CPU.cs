@@ -90,6 +90,7 @@ public abstract class CPU
             switch (returnCode)
             {
                 case 0:
+                    HandleTrap();
                     break;
                 case 1:
                     //Sleep();
@@ -137,8 +138,6 @@ public abstract class CPU
             instructionReturnValue = HandleInstruction32(instruction);
             cycle++;
         }
-
-        HandleTrap();
 
         return instructionReturnValue;
     }
@@ -517,11 +516,17 @@ public abstract class CPU
 
                     switch ((unpacked.Funct3, unpacked.Imm))
                     {
-                        case (0b000, 0b0000000):
+                        case (0b000, 0b000000000000):
                             ECALL(unpacked);
                             break;
-                        case (0b000, 0b0000001):
+                        case (0b000, 0b000000000001):
                             EBREAK(unpacked);
+                            break;
+                        case (0b000, 0b000100000010):
+                            SRET(unpacked);
+                            break;
+                        case (0b000, 0b001100000010):
+                            MRET(unpacked);
                             break;
                         case (0b001, _):
                             CSRRW(unpacked);
@@ -943,6 +948,22 @@ public abstract class CPU
         int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
         WriteMemory(ReadRegister(instruction.Rs1), data & ReadRegister(instruction.Rs2), 32);
         WriteRegister(instruction.Rd, data);
+    }
+
+    // Privileged Trap-Return
+
+    private void SRET(IType instruction)
+    {
+        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+    }
+
+    private void MRET(IType instruction)
+    {
+        int tmpMstatus = mstatusCSR;
+        int tmpPrivilege = privilege;
+        mstatusCSR = ((tmpMstatus & 0x80) >>> 4) | ((tmpPrivilege & 0b11) << 11) | 0x80;
+        privilege = (tmpMstatus >>> 11) & 0b11;
+        _pc = mepcCSR - 4;
     }
 
     public static int Sext(int value, int length)
