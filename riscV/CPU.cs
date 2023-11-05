@@ -766,7 +766,7 @@ public abstract class CPU
 
     private void SLT(RType instruction)
     {
-        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) < ReadRegister(instruction.Rs2) ? ReadRegister(instruction.Rs1) : 0);
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) < ReadRegister(instruction.Rs2) ? 1 : 0);
     }
 
     private void SLTU(RType instruction)
