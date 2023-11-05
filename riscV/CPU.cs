@@ -19,6 +19,7 @@ public abstract class CPU
     private readonly bool _dumpState;
     private readonly int _maxCycles;
     private int cycle;
+    private long lastTime;
     // -----------------------------------
 
     private int _pc;
@@ -52,6 +53,7 @@ public abstract class CPU
         _pc = memoryOffset;
         _memory = memory;
         WriteRegister(11, reg11Val);
+        privilege = 3;
 
         _dumpState = dumpState;
         _maxCycles = maxCycles;
@@ -90,22 +92,26 @@ public abstract class CPU
                 case 0:
                     break;
                 case 1:
-                    UpdateTime(1);
+                    //Sleep();
+                    cycle += 1;
                     break;
                 default:
                     throw new NotImplementedException($"Return code not handled: {returnCode}");
             }
-            UpdateTime(1);
-            cycle++;
         }
     }
 
     public int Cycle()
     {
+        int instruction = ReadMemory(_pc, 32);
         int instructionReturnValue = 0;
-        // Update every instruction, change later to regular updates
 
-        if (mTime > mTimeCmp && mTimeCmp > 0)
+        // Change to cLine arg later
+        long elapsedTime = true ? cycle - lastTime : HandleTimeDiff();
+        UpdateTime(elapsedTime);
+        lastTime += elapsedTime;
+
+        if (mTime > mTimeCmp && mTimeCmp != 0)
         {
             WFI = false;
             mipCSR |= 1 << 7; //MTIP of MIP // https://stackoverflow.com/a/61916199/2926815  Fire interrupt.
@@ -128,8 +134,8 @@ public abstract class CPU
         }
         else
         {
-            int instruction = ReadMemory(_pc, 32);
             instructionReturnValue = HandleInstruction32(instruction);
+            cycle++;
         }
 
         HandleTrap();
@@ -228,9 +234,17 @@ public abstract class CPU
     {
         int opcode = instruction & 0b1111111;
 
-        if (_dumpState)
+        if (_pc - memoryOffset >= _memory.Length)
         {
-            PrintStatus(instruction);
+            // Access violation
+            globalTrap = 1 + 1;
+            return 0;
+        }
+        else if (((_pc - memoryOffset) & 0b11) != 0)
+        {
+            // PC misalignment
+            globalTrap = 1 + 0;
+            return 0;
         }
 
         switch (opcode)
@@ -1082,9 +1096,9 @@ public abstract class CPU
 
     private void PrintStatus(int instruction)
     {
-        Console.WriteLine($"x:{mstatusCSR:x8} a:{(int)(mTime >>> 32):x8} b:{Math.Max((int)((mTime & 0xffffffff) - 1), 0):x8} c:{(int)(mTimeCmp >>> 32):x8} d:{(int)(mTimeCmp & 0xffffffff):x8} e:{mscratchCSR:x8} f:{mtvecCSR:x8} g:{mieCSR:x8} h:{mipCSR:x8} i:{mepcCSR:x8} j:{mtvalCSR:x8} k:{mcauseCSR:x8}");
-
         Console.WriteLine("PC: " + $"""{_pc:X8} [0x{instruction:X8}] """.ToLower());
+
+        Console.WriteLine($"x:{mstatusCSR:x8} a:{(int)(mTime >>> 32):x8} b:{(int)(mTime & 0xffffffff):x8} c:{(int)(mTimeCmp & 0xffffffff):x8} d:{(int)(mTimeCmp >>> 32):x8} e:{mscratchCSR:x8} f:{mtvecCSR:x8} g:{mieCSR:x8} h:{mipCSR:x8} i:{mepcCSR:x8} j:{mtvalCSR:x8} k:{mcauseCSR:x8} l:{cycle:x8}");
 
         Console.Write("Z" + $":{_registers[0]:X8} ra:{_registers[1]:X8} sp:{_registers[2]:X8} gp:{_registers[3]:X8} tp:{_registers[4]:X8} t0:{_registers[5]:X8} t1:{_registers[6]:X8} t2:{_registers[7]:X8} s0:{_registers[8]:X8} s1:{_registers[9]:X8} a0:{_registers[10]:X8} a1:{_registers[11]:X8} a2:{_registers[12]:X8} a3:{_registers[13]:X8} a4:{_registers[14]:X8} a5:{_registers[15]:X8} ".ToLower());
         Console.WriteLine($"a6:{_registers[16]:X8} a7:{_registers[17]:X8} s2:{_registers[18]:X8} s3:{_registers[19]:X8} s4:{_registers[20]:X8} s5:{_registers[21]:X8} s6:{_registers[22]:X8} s7:{_registers[23]:X8} s8:{_registers[24]:X8} s9:{_registers[25]:X8} s10:{_registers[26]:X8} s11:{_registers[27]:X8} t3:{_registers[28]:X8} t4:{_registers[29]:X8} t5:{_registers[30]:X8} t6:{_registers[31]:X8}".ToLower());
