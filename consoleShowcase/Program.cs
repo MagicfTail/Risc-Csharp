@@ -111,7 +111,7 @@ class Program
                 case 0x139:
                     break;
                 case 0x140:
-                    return Console.KeyAvailable ? Console.ReadKey().KeyChar : -1;
+                    return Console.KeyAvailable ? Console.ReadKey(true).KeyChar : -1;
                 default:
                     throw new NotImplementedException($"CSR read not seen before: {CSR:x}");
             }
