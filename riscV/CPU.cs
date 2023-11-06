@@ -228,322 +228,322 @@ public abstract class CPU
         }
         try
         {
-        switch (opcode)
-        {
-            case 0b0000011: // 0x03
-                {
-                    var unpacked = ITypeOpcode(instruction);
-
-                    switch (unpacked.Funct3)
+            switch (opcode)
+            {
+                case 0b0000011: // 0x03
                     {
-                        case 0b000:
-                            LB(unpacked);
-                            break;
-                        case 0b001:
-                            LH(unpacked);
-                            break;
-                        case 0b010:
-                            LW(unpacked);
-                            break;
-                        case 0b100:
-                            LBU(unpacked);
-                            break;
-                        case 0b101:
-                            LHU(unpacked);
-                            break;
-                        default:
+                        var unpacked = ITypeOpcode(instruction);
+
+                        switch (unpacked.Funct3)
+                        {
+                            case 0b000:
+                                LB(unpacked);
+                                break;
+                            case 0b001:
+                                LH(unpacked);
+                                break;
+                            case 0b010:
+                                LW(unpacked);
+                                break;
+                            case 0b100:
+                                LBU(unpacked);
+                                break;
+                            case 0b101:
+                                LHU(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0001111: // 0x0F
-                {
-                    var unpacked = ITypeOpcode(instruction);
-
-                    switch (unpacked.Funct3)
+                case 0b0001111: // 0x0F
                     {
-                        case 0b000:
-                            FENCE(unpacked);
-                            break;
-                        case 0b001:
-                            FENCE_I(unpacked);
-                            break;
-                        default:
+                        var unpacked = ITypeOpcode(instruction);
+
+                        switch (unpacked.Funct3)
+                        {
+                            case 0b000:
+                                FENCE(unpacked);
+                                break;
+                            case 0b001:
+                                FENCE_I(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0010011: // 0x13
-                {
-                    var unpacked = ITypeOpcode(instruction);
-
-                    switch (unpacked.Funct3)
+                case 0b0010011: // 0x13
                     {
-                        case 0b000:
-                            ADDI(unpacked);
-                            break;
-                        case 0b001:
-                            SLLI(unpacked);     // RV64I Base Instruction Set
-                            break;
-                        case 0b010:
-                            SLTI(unpacked);
-                            break;
-                        case 0b011:
-                            SLTIU(unpacked);
-                            break;
-                        case 0b100:
-                            XORI(unpacked);
-                            break;
-                        case 0b101:
-                            switch ((unpacked.Imm >> 5) & 0b1111111)
-                            {
-                                case 0b0000000:
-                                    SRLI(unpacked);
-                                    break;
-                                case 0b0100000:
-                                    SRAI(unpacked);
-                                    break;
-                                default:
+                        var unpacked = ITypeOpcode(instruction);
+
+                        switch (unpacked.Funct3)
+                        {
+                            case 0b000:
+                                ADDI(unpacked);
+                                break;
+                            case 0b001:
+                                SLLI(unpacked);     // RV64I Base Instruction Set
+                                break;
+                            case 0b010:
+                                SLTI(unpacked);
+                                break;
+                            case 0b011:
+                                SLTIU(unpacked);
+                                break;
+                            case 0b100:
+                                XORI(unpacked);
+                                break;
+                            case 0b101:
+                                switch ((unpacked.Imm >> 5) & 0b1111111)
+                                {
+                                    case 0b0000000:
+                                        SRLI(unpacked);
+                                        break;
+                                    case 0b0100000:
+                                        SRAI(unpacked);
+                                        break;
+                                    default:
                                         throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm >> 5)})");
-                            }
-                            break;
-                        case 0b110:
-                            ORI(unpacked);
-                            break;
-                        case 0b111:
-                            ANDI(unpacked);
-                            break;
-                        default:
+                                }
+                                break;
+                            case 0b110:
+                                ORI(unpacked);
+                                break;
+                            case 0b111:
+                                ANDI(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0010111: // 0x17
-                {
-                    var unpacked = UTypeOpcode(instruction);
-                    AUIPC(unpacked);
-
-                    break;
-                }
-            case 0b0100011: // 0x23
-                {
-                    var unpacked = STypeOpcode(instruction);
-
-                    switch (unpacked.Funct3)
+                case 0b0010111: // 0x17
                     {
-                        case 0b000:
-                            SB(unpacked);
-                            break;
-                        case 0b001:
-                            SH(unpacked);
-                            break;
-                        case 0b010:
-                            SW(unpacked);
-                            break;
-                        default:
+                        var unpacked = UTypeOpcode(instruction);
+                        AUIPC(unpacked);
+
+                        break;
+                    }
+                case 0b0100011: // 0x23
+                    {
+                        var unpacked = STypeOpcode(instruction);
+
+                        switch (unpacked.Funct3)
+                        {
+                            case 0b000:
+                                SB(unpacked);
+                                break;
+                            case 0b001:
+                                SH(unpacked);
+                                break;
+                            case 0b010:
+                                SW(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0101111: // 0x2F RV32A Standard Extension
-                {
-                    var unpacked = RTypeOpcode(instruction);
-
-                    if (ReadRegister(unpacked.Rs1) - memoryOffset >= _memory.Length - 3)
+                case 0b0101111: // 0x2F RV32A Standard Extension
                     {
+                        var unpacked = RTypeOpcode(instruction);
+
+                        if (ReadRegister(unpacked.Rs1) - memoryOffset >= _memory.Length - 3)
+                        {
                             throw new NotImplementedException();
-                    }
+                        }
 
-                    switch ((unpacked.Funct3, (unpacked.Funct7 >> 2) & 0b11111))
-                    {
-                        case (0b010, 0b00000):
-                            AMOADD_W(unpacked);
-                            break;
-                        case (0b010, 0b00001):
-                            AMOSWAP_W(unpacked);
-                            break;
-                        case (0b010, 0b00010):
-                            LR_W(unpacked);
-                            break;
-                        case (0b010, 0b00011):
-                            SC_W(unpacked);
-                            break;
-                        case (0b010, 0b01000):
-                            AMOOR_W(unpacked);
-                            break;
-                        case (0b010, 0b01100):
-                            AMOAND_W(unpacked);
-                            break;
-                        default:
+                        switch ((unpacked.Funct3, (unpacked.Funct7 >> 2) & 0b11111))
+                        {
+                            case (0b010, 0b00000):
+                                AMOADD_W(unpacked);
+                                break;
+                            case (0b010, 0b00001):
+                                AMOSWAP_W(unpacked);
+                                break;
+                            case (0b010, 0b00010):
+                                LR_W(unpacked);
+                                break;
+                            case (0b010, 0b00011):
+                                SC_W(unpacked);
+                                break;
+                            case (0b010, 0b01000):
+                                AMOOR_W(unpacked);
+                                break;
+                            case (0b010, 0b01100):
+                                AMOAND_W(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7 >> 2)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0110011: // 0x33
-                {
-                    var unpacked = RTypeOpcode(instruction);
-
-                    switch ((unpacked.Funct3, unpacked.Funct7))
+                case 0b0110011: // 0x33
                     {
-                        case (0b000, 0b0000000):
-                            ADD(unpacked);
-                            break;
-                        case (0b000, 0b0000001):    // RV32M Standard Extension
-                            MUL(unpacked);
-                            break;
-                        case (0b000, 0b0100000):
-                            SUB(unpacked);
-                            break;
-                        case (0b001, 0b0000000):
-                            SLL(unpacked);
-                            break;
-                        case (0b001, 0b0000001):    // RV32M Standard Extension
-                            MULH(unpacked);
-                            break;
-                        case (0b010, 0b0000000):
-                            SLT(unpacked);
-                            break;
-                        case (0b011, 0b0000000):
-                            SLTU(unpacked);
-                            break;
-                        case (0b011, 0b0000001):    // RV32M Standard Extension
-                            MULHU(unpacked);
-                            break;
-                        case (0b100, 0b0000000):
-                            XOR(unpacked);
-                            break;
-                        case (0b100, 0b0000001):    // RV32M Standard Extension
-                            DIV(unpacked);
-                            break;
-                        case (0b101, 0b0000000):
-                            SRL(unpacked);
-                            break;
-                        case (0b101, 0b0000001):    // RV32M Standard Extension
-                            DIVU(unpacked);
-                            break;
-                        case (0b101, 0b0100000):
-                            SRA(unpacked);
-                            break;
-                        case (0b110, 0b0000000):
-                            OR(unpacked);
-                            break;
-                        case (0b110, 0b0000001):    // RV32M Standard Extension
-                            REM(unpacked);
-                            break;
-                        case (0b111, 0b0000000):
-                            AND(unpacked);
-                            break;
-                        case (0b111, 0b0000001):    // RV32M Standard Extension
-                            REMU(unpacked);
-                            break;
-                        default:
+                        var unpacked = RTypeOpcode(instruction);
+
+                        switch ((unpacked.Funct3, unpacked.Funct7))
+                        {
+                            case (0b000, 0b0000000):
+                                ADD(unpacked);
+                                break;
+                            case (0b000, 0b0000001):    // RV32M Standard Extension
+                                MUL(unpacked);
+                                break;
+                            case (0b000, 0b0100000):
+                                SUB(unpacked);
+                                break;
+                            case (0b001, 0b0000000):
+                                SLL(unpacked);
+                                break;
+                            case (0b001, 0b0000001):    // RV32M Standard Extension
+                                MULH(unpacked);
+                                break;
+                            case (0b010, 0b0000000):
+                                SLT(unpacked);
+                                break;
+                            case (0b011, 0b0000000):
+                                SLTU(unpacked);
+                                break;
+                            case (0b011, 0b0000001):    // RV32M Standard Extension
+                                MULHU(unpacked);
+                                break;
+                            case (0b100, 0b0000000):
+                                XOR(unpacked);
+                                break;
+                            case (0b100, 0b0000001):    // RV32M Standard Extension
+                                DIV(unpacked);
+                                break;
+                            case (0b101, 0b0000000):
+                                SRL(unpacked);
+                                break;
+                            case (0b101, 0b0000001):    // RV32M Standard Extension
+                                DIVU(unpacked);
+                                break;
+                            case (0b101, 0b0100000):
+                                SRA(unpacked);
+                                break;
+                            case (0b110, 0b0000000):
+                                OR(unpacked);
+                                break;
+                            case (0b110, 0b0000001):    // RV32M Standard Extension
+                                REM(unpacked);
+                                break;
+                            case (0b111, 0b0000000):
+                                AND(unpacked);
+                                break;
+                            case (0b111, 0b0000001):    // RV32M Standard Extension
+                                REMU(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b0110111: // 0x37
-                {
-                    var unpacked = UTypeOpcode(instruction);
-                    LUI(unpacked);
-
-                    break;
-                }
-            case 0b1100011: // 0x63
-                {
-                    var unpacked = BTypeOpcode(instruction);
-
-                    switch (unpacked.Funct3)
+                case 0b0110111: // 0x37
                     {
-                        case 0b000:
-                            BEQ(unpacked);
-                            break;
-                        case 0b001:
-                            BNE(unpacked);
-                            break;
-                        case 0b100:
-                            BLT(unpacked);
-                            break;
-                        case 0b101:
-                            BGE(unpacked);
-                            break;
-                        case 0b110:
-                            BLTU(unpacked);
-                            break;
-                        case 0b111:
-                            BGEU(unpacked);
-                            break;
-                        default:
+                        var unpacked = UTypeOpcode(instruction);
+                        LUI(unpacked);
+
+                        break;
+                    }
+                case 0b1100011: // 0x63
+                    {
+                        var unpacked = BTypeOpcode(instruction);
+
+                        switch (unpacked.Funct3)
+                        {
+                            case 0b000:
+                                BEQ(unpacked);
+                                break;
+                            case 0b001:
+                                BNE(unpacked);
+                                break;
+                            case 0b100:
+                                BLT(unpacked);
+                                break;
+                            case 0b101:
+                                BGE(unpacked);
+                                break;
+                            case 0b110:
+                                BLTU(unpacked);
+                                break;
+                            case 0b111:
+                                BGEU(unpacked);
+                                break;
+                            default:
                                 throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                        }
+
+                        break;
                     }
-
-                    break;
-                }
-            case 0b1100111: // 0x67
-                {
-                    var unpacked = ITypeOpcode(instruction);
-                    JALR(unpacked);
-
-                    break;
-                }
-            case 0b1101111: // 0x6F
-                {
-                    var unpacked = JTypeOpcode(instruction);
-                    JAL(unpacked);
-
-                    break;
-                }
-            case 0b1110011: // 0x73
-                {
-                    var unpacked = ITypeOpcode(instruction);
-
-                    switch ((unpacked.Funct3, unpacked.Imm))
+                case 0b1100111: // 0x67
                     {
-                        case (0b000, 0b000000000000):
-                            ECALL(unpacked);
-                            return 0;
-                        case (0b000, 0b000000000001):
-                            EBREAK(unpacked);
-                            break;
-                        case (0b000, 0b000100000010):
-                            SRET(unpacked);
-                            break;
-                        case (0b000, 0b001100000010):
-                            MRET(unpacked);
-                            break;
-                        case (0b000, 0b000100000101):
-                            WFI(unpacked);
-                            return 1;
-                        case (0b001, _):
-                            CSRRW(unpacked);
-                            break;
-                        case (0b010, _):
-                            CSRRS(unpacked);
-                            break;
-                        case (0b011, _):
-                            CSRRC(unpacked);
-                            break;
-                        case (0b101, _):
-                            CSRRWI(unpacked);
-                            break;
-                        case (0b110, _):
-                            CSRRSI(unpacked);
-                            break;
-                        case (0b111, _):
-                            CSRRCI(unpacked);
-                            break;
-                        default:
-                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm)})");
-                    }
+                        var unpacked = ITypeOpcode(instruction);
+                        JALR(unpacked);
 
-                    break;
-                }
-            default:
+                        break;
+                    }
+                case 0b1101111: // 0x6F
+                    {
+                        var unpacked = JTypeOpcode(instruction);
+                        JAL(unpacked);
+
+                        break;
+                    }
+                case 0b1110011: // 0x73
+                    {
+                        var unpacked = ITypeOpcode(instruction);
+
+                        switch ((unpacked.Funct3, unpacked.Imm))
+                        {
+                            case (0b000, 0b000000000000):
+                                ECALL(unpacked);
+                                return 0;
+                            case (0b000, 0b000000000001):
+                                EBREAK(unpacked);
+                                break;
+                            case (0b000, 0b000100000010):
+                                SRET(unpacked);
+                                break;
+                            case (0b000, 0b001100000010):
+                                MRET(unpacked);
+                                break;
+                            case (0b000, 0b000100000101):
+                                WFI(unpacked);
+                                return 1;
+                            case (0b001, _):
+                                CSRRW(unpacked);
+                                break;
+                            case (0b010, _):
+                                CSRRS(unpacked);
+                                break;
+                            case (0b011, _):
+                                CSRRC(unpacked);
+                                break;
+                            case (0b101, _):
+                                CSRRWI(unpacked);
+                                break;
+                            case (0b110, _):
+                                CSRRSI(unpacked);
+                                break;
+                            case (0b111, _):
+                                CSRRCI(unpacked);
+                                break;
+                            default:
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm)})");
+                        }
+
+                        break;
+                    }
+                default:
                     throw new InvalidOperationException($"Unhandled opcode: {ToBin(opcode)}");
             }
         }
