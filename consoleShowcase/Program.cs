@@ -66,9 +66,12 @@ class Program
     {
         private long oldTime;
 
+        private Queue<char> keyBuffer;
+
         public MyCPU(Memory memory, int reg11val, bool dumpState, int maxCycles) : base(memory, reg11val, dumpState, maxCycles)
         {
             oldTime = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+            keyBuffer = new();
         }
 
         public override void HandleMemoryStore(int position, int data)
@@ -84,9 +87,9 @@ class Program
             // Emulating a 8250 / 16550 UART
             if (position == 0x10000005)
             {
-                return Console.KeyAvailable ? 0x61 : 0x60;
+                return KeyAvailable() ? 0x61 : 0x60;
             }
-            else if (position == 0x10000000 && Console.KeyAvailable)
+            else if (position == 0x10000000 && KeyAvailable())
             {
                 throw new NotImplementedException("Keyboard read not implemented 2");
             }
@@ -115,7 +118,7 @@ class Program
                 case 0x139:
                     break;
                 case 0x140:
-                    return Console.KeyAvailable ? Console.ReadKey(true).KeyChar : -1;
+                    return KeyAvailable() ? HandleKey() : -1;
                 default:
                     throw new NotImplementedException($"CSR read not seen before: {CSR:x}");
             }
@@ -129,6 +132,57 @@ class Program
             oldTime += elapsedTime;
 
             return Convert.ToUInt32(elapsedTime);
+        }
+
+        private bool KeyAvailable()
+        {
+            return Console.KeyAvailable || keyBuffer.Count > 0;
+        }
+
+        private char HandleKey()
+        {
+            if (keyBuffer.Count > 0)
+            {
+                return keyBuffer.Dequeue();
+            }
+
+            ConsoleKeyInfo key = Console.ReadKey(true);
+
+            // Convert special keys to input (Almost certainly missing a bunch)
+            switch (key.Key)
+            {
+                case ConsoleKey.UpArrow:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('A');
+                    return (char)27;
+                case ConsoleKey.DownArrow:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('B');
+                    return (char)27;
+                case ConsoleKey.RightArrow:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('C');
+                    return (char)27;
+                case ConsoleKey.LeftArrow:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('D');
+                    return (char)27;
+                case ConsoleKey.End:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('F');
+                    return (char)27;
+                case ConsoleKey.Home:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('H');
+                    return (char)27;
+                case ConsoleKey.Delete:
+                    keyBuffer.Enqueue('[');
+                    keyBuffer.Enqueue('3');
+                    keyBuffer.Enqueue((char)126);
+                    return (char)27;
+                default:
+                    return key.KeyChar;
+            }
         }
     }
 
