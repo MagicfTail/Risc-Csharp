@@ -371,6 +371,11 @@ public abstract class CPU
                 {
                     var unpacked = RTypeOpcode(instruction);
 
+                    if (ReadRegister(unpacked.Rs1) - memoryOffset >= _memory.Length - 3)
+                    {
+                        throw new InvalidOperationException();
+                    }
+
                     switch ((unpacked.Funct3, (unpacked.Funct7 >> 2) & 0b11111))
                     {
                         case (0b010, 0b00000):
