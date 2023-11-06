@@ -194,6 +194,7 @@ class Program
 
     public static void ExitVirtualConsole()
     {
+        Console.Clear();
         Console.Write("\x1b[?1049l");
     }
 }
