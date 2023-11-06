@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 
 namespace riscV;
 
@@ -21,7 +21,7 @@ public class Memory
     public void DumpMemory(string fileName)
     {
         using FileStream? file = File.Create(fileName);
-        StringBuilder hex = new StringBuilder((int)(_stream.Length * 2));
+        StringBuilder hex = new((int)(_stream.Length * 2));
         int c = 0;
         foreach (byte b in _RAM)
         {

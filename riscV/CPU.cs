@@ -1,4 +1,3 @@
-using System.Runtime.Intrinsics.X86;
 using riscV.instructions;
 
 namespace riscV;
@@ -204,7 +203,6 @@ public abstract class CPU
     {
         if (register == 0)
         {
-            // throw new InvalidOperationException($"Tried writing register 0");
             return;
         }
 
