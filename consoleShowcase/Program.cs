@@ -3,15 +3,19 @@ using System.CommandLine;
 
 class Program
 {
-    private const string imagePath = "../mini-rv32ima-files/DownloadedImage";
     private const int memoryOffset = unchecked((int)0x80000000);
     private const int offsetConst = 192;
     private const int ramAmount = 64 * 1024 * 1024;
     public static void Main(string[] args)
     {
+        Argument<string> imageArgument = new(
+            name: "image",
+            description: "The compiled image to run"
+        );
+
         Option<bool> printStateOption = new(
             name: "--state",
-            description: "Print the CPU state after ever cycle",
+            description: "Print the CPU state after every cycle",
             getDefaultValue: () => false
         );
         printStateOption.AddAlias("-s");
@@ -25,11 +29,12 @@ class Program
 
         RootCommand rootCommand = new("Console implementation of a Risc-V CPU running Linux")
         {
+            imageArgument,
             printStateOption,
             maxCyclesOption
         };
 
-        rootCommand.SetHandler((printState, maxCycles) =>
+        rootCommand.SetHandler((printState, maxCycles, imagePath) =>
         {
             Memory memory = new(ramAmount);
 
@@ -46,7 +51,7 @@ class Program
             EnterVirtualConsole();
 
             cpu.Start();
-        }, printStateOption, maxCyclesOption);
+        }, printStateOption, maxCyclesOption, imageArgument);
 
         Console.CancelKeyPress += delegate
         {
@@ -91,7 +96,7 @@ class Program
             }
             else if (position == 0x10000000 && KeyAvailable())
             {
-                throw new NotImplementedException("Keyboard read not implemented 2");
+                throw new NotImplementedException("HandleMemoryLoad");
             }
 
             return 0;
