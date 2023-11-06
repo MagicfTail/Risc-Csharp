@@ -252,7 +252,7 @@ public abstract class CPU
                             LHU(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
 
                     break;
@@ -270,7 +270,7 @@ public abstract class CPU
                             FENCE_I(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
 
                     break;
@@ -306,7 +306,7 @@ public abstract class CPU
                                     SRAI(unpacked);
                                     break;
                                 default:
-                                    throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm >> 5)})");
+                                        throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm >> 5)})");
                             }
                             break;
                         case 0b110:
@@ -316,7 +316,7 @@ public abstract class CPU
                             ANDI(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
 
                     break;
@@ -344,7 +344,7 @@ public abstract class CPU
                             SW(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
 
                     break;
@@ -355,7 +355,7 @@ public abstract class CPU
 
                     if (ReadRegister(unpacked.Rs1) - memoryOffset >= _memory.Length - 3)
                     {
-                        throw new InvalidOperationException();
+                            throw new NotImplementedException();
                     }
 
                     switch ((unpacked.Funct3, (unpacked.Funct7 >> 2) & 0b11111))
@@ -379,7 +379,7 @@ public abstract class CPU
                             AMOAND_W(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7 >> 2)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7 >> 2)})");
                     }
 
                     break;
@@ -442,7 +442,7 @@ public abstract class CPU
                             REMU(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Funct7)})");
                     }
 
                     break;
@@ -479,7 +479,7 @@ public abstract class CPU
                             BGEU(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
 
                     break;
@@ -538,13 +538,13 @@ public abstract class CPU
                             CSRRCI(unpacked);
                             break;
                         default:
-                            throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm)})");
+                                throw new InvalidOperationException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)}, {ToBin(unpacked.Imm)})");
                     }
 
                     break;
                 }
             default:
-                throw new NotImplementedException($"Unhandled opcode: {ToBin(opcode)}");
+                    throw new InvalidOperationException($"Unhandled opcode: {ToBin(opcode)}");
         }
 
         _pc += 4;
@@ -1025,7 +1025,7 @@ public abstract class CPU
                 _memory.WriteWord(offsetPosition, data);
                 break;
             default:
-                throw new InvalidDataException($"Invalid write length: {len}");
+                throw new NotSupportedException($"Invalid write length: {len}");
         }
     }
 
@@ -1056,17 +1056,13 @@ public abstract class CPU
             }
         }
 
-        switch (len)
+        return len switch
         {
-            case 8:
-                return _memory.ReadByte(offsetPosition) & 0b11111111;
-            case 16:
-                return _memory.ReadHalf(offsetPosition) & 0b1111111111111111;
-            case 32:
-                return _memory.ReadWord(offsetPosition);
-            default:
-                throw new InvalidDataException($"Invalid read length: {len}");
-        }
+            8 => _memory.ReadByte(offsetPosition) & 0b11111111,
+            16 => _memory.ReadHalf(offsetPosition) & 0b1111111111111111,
+            32 => _memory.ReadWord(offsetPosition),
+            _ => throw new NotSupportedException($"Invalid read length: {len}"),
+        };
     }
 
     private void UpdateTime(long difference)
