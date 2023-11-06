@@ -905,13 +905,13 @@ public abstract class CPU
     private void LR_W(RType instruction)
     {
         int address = ReadRegister(instruction.Rs1);
-        WriteRegister(instruction.Rd, ReadMemory(address, 32));
         LRAddress = address;
+        WriteRegister(instruction.Rd, ReadMemory(address, 32));
     }
 
     private void SC_W(RType instruction)
     {
-        if (LRAddress == ReadRegister(instruction.Rs1))
+        if ((LRAddress & 0x1fffffff) == (ReadRegister(instruction.Rs1) & 0x1fffffff))
         {
             WriteMemory(ReadRegister(instruction.Rs1), ReadRegister(instruction.Rs2), 32);
             WriteRegister(instruction.Rd, 0);
