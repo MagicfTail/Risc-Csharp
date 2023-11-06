@@ -156,7 +156,7 @@ public abstract class CPU
             0x344 => mipCSR,
             0x3A0 => 0, //pmpcfg0CSR,
             0x3B0 => 0, //pmpaddr0CSR,
-            0xf11 => 0, //mvendoridCSR,
+            0xf11 => unchecked((int)0xff0ff0ff), //mvendoridCSR,
             0xf12 => 0, //marchidCSR,
             0xf13 => 0, //mimpidCSR,
             0xF14 => 0, //mhartidCSR,
