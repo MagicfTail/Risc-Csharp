@@ -881,7 +881,8 @@ public abstract class CPU
 
     private void DIV(RType instruction)
     {
-        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) / ReadRegister(instruction.Rs2));
+        int data = ReadRegister(instruction.Rs2) == 0 ? -1 : ReadRegister(instruction.Rs1) / ReadRegister(instruction.Rs2);
+        WriteRegister(instruction.Rd, data);
     }
 
     private void DIVU(RType instruction)
