@@ -523,7 +523,7 @@ public abstract class CPU
                     {
                         case (0b000, 0b000000000000):
                             ECALL(unpacked);
-                            break;
+                            return 0;
                         case (0b000, 0b000000000001):
                             EBREAK(unpacked);
                             break;
