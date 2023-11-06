@@ -44,6 +44,8 @@ public abstract class CPU
     private int mtvalCSR;
     private int mcauseCSR;
 
+    private int errorVal;
+
     public CPU(Memory memory, int reg11Val, bool dumpState = false, int maxCycles = -1)
     {
         _pc = memoryOffset;
@@ -225,7 +227,8 @@ public abstract class CPU
             globalTrap = 1 + 0;
             return 0;
         }
-
+        try
+        {
         switch (opcode)
         {
             case 0b0000011: // 0x03
@@ -543,6 +546,11 @@ public abstract class CPU
                 }
             default:
                     throw new InvalidOperationException($"Unhandled opcode: {ToBin(opcode)}");
+            }
+        }
+        catch (InvalidDataException)
+        {
+
         }
 
         _pc += 4;
@@ -1007,6 +1015,8 @@ public abstract class CPU
             }
             else
             {
+                globalTrap = 7 + 1;
+                errorVal = position;
                 throw new InvalidDataException("Store access fault.");
             }
         }
@@ -1050,6 +1060,8 @@ public abstract class CPU
             }
             else
             {
+                globalTrap = 5 + 1;
+                errorVal = position;
                 throw new InvalidDataException("Read access fault.");
             }
         }
@@ -1084,7 +1096,8 @@ public abstract class CPU
         else
         {
             mcauseCSR = globalTrap - 1;
-            mtvalCSR = (globalTrap > 5 && globalTrap <= 8) ? throw new NotImplementedException() : _pc;
+            mtvalCSR = (globalTrap > 5 && globalTrap <= 8) ? errorVal : _pc;
+            errorVal = 0;
         }
         mepcCSR = _pc;
         mstatusCSR = ((mstatusCSR & 0x08) << 4) | ((privilege & 3) << 11);
