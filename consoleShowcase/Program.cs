@@ -80,10 +80,9 @@ class Program
             // Emulating a 8250 / 16550 UART
             if (position == 0x10000005)
             {
-                return 0x60;
-                // return Console.KeyAvailable ? 0x61 : 0x60;
+                return Console.KeyAvailable ? 0x61 : 0x60;
             }
-            else if (position == 0x10000000)// && IsKBHit())
+            else if (position == 0x10000000 && Console.KeyAvailable)
             {
                 throw new NotImplementedException("Keyboard read not implemented 2");
             }
@@ -98,6 +97,8 @@ class Program
                 case 0x139:
                     Console.Write((char)value);
                     break;
+                case 0x140:
+                    break;
                 default:
                     throw new NotImplementedException($"CSR write not seen before: {CSR:x}");
             }
@@ -110,7 +111,7 @@ class Program
                 case 0x139:
                     break;
                 case 0x140:
-                    throw new NotImplementedException("CSR read not implemented 0x140");
+                    return Console.KeyAvailable ? Console.ReadKey().KeyChar : -1;
                 default:
                     throw new NotImplementedException($"CSR read not seen before: {CSR:x}");
             }
