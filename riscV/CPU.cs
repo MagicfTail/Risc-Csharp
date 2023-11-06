@@ -816,7 +816,7 @@ public abstract class CPU
 
     private void ECALL(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        globalTrap = (privilege & 0b11) != 0 ? (11 + 1) : (8 + 1);
     }
 
     private void EBREAK(IType instruction)
@@ -1097,7 +1097,7 @@ public abstract class CPU
         else
         {
             mcauseCSR = globalTrap - 1;
-            throw new NotImplementedException();
+            mtvalCSR = (globalTrap > 5 && globalTrap <= 8) ? throw new NotImplementedException() : _pc;
         }
         mepcCSR = _pc;
         mstatusCSR = ((mstatusCSR & 0x08) << 4) | ((privilege & 3) << 11);
