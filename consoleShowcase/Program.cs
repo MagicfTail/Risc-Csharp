@@ -43,18 +43,23 @@ class Program
 
             MyCPU cpu = new(memory, ptrDTB + memoryOffset, printState, maxCycles);
 
-            // EnterVirtualConsole();
+            EnterVirtualConsole();
 
             cpu.Start();
         }, printStateOption, maxCyclesOption);
 
+        Console.CancelKeyPress += delegate
+        {
+            OnProcessExit();
+        };
+
         rootCommand.Invoke(args);
     }
 
-    public static void OnProcessExit(object sender, EventArgs e)
+    public static void OnProcessExit()
     {
-        // ExitVirtualConsole();
-        // Console.WriteLine("We back");
+        ExitVirtualConsole();
+        Console.WriteLine("We back");
     }
 
     class MyCPU : CPU
