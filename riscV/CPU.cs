@@ -72,7 +72,6 @@ public abstract class CPU
         cycle = 0;
         while (_maxCycles < 0 || cycle < _maxCycles)
         {
-
             if (_dumpState)
             {
                 PrintStatus(ReadMemory(_pc, 32));
