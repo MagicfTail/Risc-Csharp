@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "dotnet: build",
+            "program": "${workspaceFolder}/consoleShowcase/bin/Debug/net7.0/consoleShowcase.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/consoleShowcase",
+            "stopAtEntry": false,
+            "console": "integratedTerminal"
+        },
+        {
             "name": "C#: consoleShowcase Debug",
             "type": "dotnet",
             "request": "launch",
