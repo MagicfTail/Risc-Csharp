@@ -700,7 +700,7 @@ public abstract class CPU
 
     private void SLTI(IType instruction)
     {
-        throw new NotImplementedException($"Unimplemented instruction: {System.Reflection.MethodBase.GetCurrentMethod()?.Name}");
+        WriteRegister(instruction.Rd, ReadRegister(instruction.Rs1) < Sext(instruction.Imm, 12) ? 1 : 0);
     }
 
     private void SLTIU(IType instruction)
