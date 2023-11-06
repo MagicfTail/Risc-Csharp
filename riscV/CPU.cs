@@ -932,9 +932,8 @@ public abstract class CPU
     private void AMOSWAP_W(RType instruction)
     {
         int data = ReadMemory(ReadRegister(instruction.Rs1), 32);
+        WriteMemory(ReadRegister(instruction.Rs1), ReadRegister(instruction.Rs2), 32);
         WriteRegister(instruction.Rd, data);
-        WriteRegister(instruction.Rs1, ReadRegister(instruction.Rs2));
-        WriteRegister(instruction.Rs2, data);
     }
 
     private void AMOOR_W(RType instruction)
