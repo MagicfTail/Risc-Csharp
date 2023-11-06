@@ -70,7 +70,6 @@ class Program
         {
             if (position == 0x10000000)
             {
-                char sign = (char)data;
                 Console.Write((char)data);
             }
         }

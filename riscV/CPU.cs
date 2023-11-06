@@ -40,9 +40,6 @@ public abstract class CPU
     private int mipCSR;
     private int mscratchCSR;
     private int mtvecCSR;
-    private int pmpaddr0CSR;
-    private int pmpcfg0CSR;
-    private int mhartidCSR;
     private int mstatusCSR;
     private int mepcCSR;
     private int mtvalCSR;
@@ -74,17 +71,11 @@ public abstract class CPU
         cycle = 0;
         while (_maxCycles < 0 || cycle < _maxCycles)
         {
-            // if (cycle % 1024 == 0)
-            // {
-            //     UpdateTime(HandleTimeDiff());
-            // }
 
-            // if (cycle == 3248624)
-            // {
-            //     _memory.DumpMemory("../RAMDumpMine.tmp");
-            //     Environment.Exit(0);
-            // }
-
+            if (_dumpState)
+            {
+                PrintStatus(ReadMemory(_pc, 32));
+            }
 
             int returnCode = Cycle();
             switch (returnCode)
@@ -93,7 +84,6 @@ public abstract class CPU
                     HandleTrap();
                     break;
                 case 1:
-                    //Sleep();
                     cycle += 1;
                     break;
                 default:
@@ -193,19 +183,11 @@ public abstract class CPU
                 mipCSR = value;
                 break;
             case 0x3A0:
-                pmpcfg0CSR = value;
-                break;
             case 0x3B0:
-                pmpaddr0CSR = value;
-                break;
             case 0xf11:
-                break;
             case 0xf12:
-                break;
             case 0xf13:
-                break;
             case 0xF14:
-                mhartidCSR = value;
                 break;
             default:
                 HandleUnknownCSRWrite(CSR, value);
@@ -499,6 +481,7 @@ public abstract class CPU
                         default:
                             throw new NotImplementedException($"Unhandled {ToBin(unpacked.Opcode)} funct: ({ToBin(unpacked.Funct3)})");
                     }
+
                     break;
                 }
             case 0b1100111: // 0x67
@@ -1112,8 +1095,8 @@ public abstract class CPU
         mepcCSR = _pc;
         mstatusCSR = ((mstatusCSR & 0x08) << 4) | ((privilege & 3) << 11);
         _pc = mtvecCSR - 4;
-        // Set flags or smt;
 
+        // Enter machine mode
         privilege = 3;
 
         globalTrap = 0;
