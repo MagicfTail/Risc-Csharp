@@ -33,7 +33,7 @@ public abstract class CPU
     // private uint mTimeCmpH = 0;
     private int globalTrap = 0;
 
-    private bool WFI;
+    private bool waitingForInterrupt;
     private int privilege;
 
     private int mieCSR;
@@ -114,7 +114,7 @@ public abstract class CPU
 
         if (mTime > mTimeCmp && mTimeCmp != 0)
         {
-            WFI = false;
+            waitingForInterrupt = false;
             mipCSR |= 1 << 7; //MTIP of MIP // https://stackoverflow.com/a/61916199/2926815  Fire interrupt.
         }
         else
@@ -123,7 +123,7 @@ public abstract class CPU
         }
 
         // If waiting for interrupt, don't do anything. This is where we should be sleeping
-        if (WFI)
+        if (waitingForInterrupt)
         {
             return 1;
         }
@@ -533,6 +533,9 @@ public abstract class CPU
                         case (0b000, 0b001100000010):
                             MRET(unpacked);
                             break;
+                        case (0b000, 0b000100000101):
+                            WFI(unpacked);
+                            return 1;
                         case (0b001, _):
                             CSRRW(unpacked);
                             break;
@@ -969,6 +972,13 @@ public abstract class CPU
         mstatusCSR = ((tmpMstatus & 0x80) >>> 4) | ((tmpPrivilege & 0b11) << 11) | 0x80;
         privilege = (tmpMstatus >>> 11) & 0b11;
         _pc = mepcCSR - 4;
+    }
+
+    private void WFI(IType instruction)
+    {
+        mstatusCSR |= 8;
+        waitingForInterrupt = true;
+        _pc += 4;
     }
 
     public static int Sext(int value, int length)
